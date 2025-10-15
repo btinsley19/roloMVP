@@ -12,20 +12,39 @@ class ContactsListViewModel: ObservableObject {
     @Published var searchText = ""
     @Published var isLoading = false
     @Published var error: ServiceError?
+    @Published var selectedTab: ContactListTab = .recent
     
     private let logger = Logger.viewModels
     private let contactsService: ContactsServiceProtocol
     private let userId: UUID
     
+    enum ContactListTab: String, CaseIterable {
+        case recent = "Recent"
+        case priority = "Priority"
+        case alphabetical = "A-Z"
+    }
+    
     var filteredContacts: [Contact] {
-        if searchText.isEmpty {
-            return contacts
+        var contactsToFilter = contacts
+        
+        // Apply tab filtering/sorting
+        switch selectedTab {
+        case .recent:
+            contactsToFilter.sort { ($0.lastInteractionAt ?? Date.distantPast) > ($1.lastInteractionAt ?? Date.distantPast) }
+        case .priority:
+            contactsToFilter.sort { $0.relationshipPriority > $1.relationshipPriority }
+        case .alphabetical:
+            contactsToFilter.sort { $0.fullName < $1.fullName }
         }
-        return contacts.filter { contact in
-            contact.fullName.localizedCaseInsensitiveContains(searchText) ||
-            contact.companyName?.localizedCaseInsensitiveContains(searchText) ?? false ||
-            contact.position?.localizedCaseInsensitiveContains(searchText) ?? false
+        
+        if !searchText.isEmpty {
+            contactsToFilter = contactsToFilter.filter { contact in
+                contact.fullName.localizedCaseInsensitiveContains(searchText) ||
+                contact.companyName?.localizedCaseInsensitiveContains(searchText) ?? false ||
+                contact.position?.localizedCaseInsensitiveContains(searchText) ?? false
+            }
         }
+        return contactsToFilter
     }
     
     init(userId: UUID,

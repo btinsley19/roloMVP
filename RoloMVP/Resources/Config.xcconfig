@@ -1,0 +1,9 @@
+//
+//  Config.xcconfig
+//  RoloMVP
+//
+//  Created by Heather Meade on 10/14/25.
+//
+
+SUPABASE_URL = https://jsphwijzgbazzuxcsgtc.supabase.co
+SUPABASE_ANON_KEY = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpzcGh3aWp6Z2Jhenp1eGNzZ3RjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTk5Nzg0MzEsImV4cCI6MjA3NTU1NDQzMX0.RuX2_4YEV1EyozK5SAsaQQldbizVH3tFy3sK-Rcwt6Y
