@@ -1,0 +1,18 @@
+//
+//  config.xcconfig
+//  RoloMVP
+//
+//  Created by Brian Tinsley on 10/9/25.
+//
+
+// Configuration settings file format documentation can be found at:
+// https://developer.apple.com/documentation/xcode/adding-a-build-configuration-file-to-your-project
+
+// INSTRUCTIONS:
+// 1. Copy this file and rename it to Config.xcconfig (remove .template)
+// 2. Replace the placeholder values below with your actual Supabase credentials
+// 3. Never commit Config.xcconfig to git (it's in .gitignore)
+
+SUPABASE_URL = https://your-project.supabase.co
+SUPABASE_ANON_KEY = your-anon-key-here
+
