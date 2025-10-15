@@ -29,16 +29,6 @@ struct ContactsListView: View {
                     action: { showNewContactSheet = true }
                 )
             } else {
-                /*
-                Picker("Contact List Filter", selection: $viewModel.selectedTab) {
-                    ForEach(ContactsListViewModel.ContactListTab.allCases, id: \.self) { tab in
-                        Text(tab.rawValue).tag(tab)
-                    }
-                }
-                .pickerStyle(.segmented)
-                .padding(.horizontal)
-                .padding(.vertical, 8)
-                 */
                 VStack(spacing: 0) {
                     HStack(spacing: 12) {
                         ForEach(ContactsListViewModel.ContactListTab.allCases, id: \.self) { tab in
@@ -68,7 +58,7 @@ struct ContactsListView: View {
                                     )
                             }
                         }
-                        Spacer() // This pushes all tabs to the left
+                        Spacer()
                     }
                     .padding(.horizontal)
                     .padding(.vertical, 8)
@@ -76,15 +66,20 @@ struct ContactsListView: View {
                     
                     List {
                         ForEach(viewModel.filteredContacts) { contact in
-                            NavigationLink {
-                                ContactDetailView(contactId: contact.id)
-                            } label: {
-                                ContactRow(contact: contact)
-                            }
+                            ContactRow(contact: contact)
+                                .listRowSeparator(.hidden)
+                                .listRowInsets(EdgeInsets())
+                                .background(
+                                    NavigationLink("", destination: ContactDetailView(contactId: contact.id))
+                                        .opacity(0)
+                                    )
                         }
                     }
                     .listStyle(.plain)
+                    .scrollContentBackground(.hidden)
                 }
+                .padding(.horizontal, 20)
+                .padding(.vertical, 20) //FIX- sometimes doesn't show up
                 .searchable(text: $viewModel.searchText, prompt: "Search contacts")
             }
         }
