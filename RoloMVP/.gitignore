@@ -177,7 +177,8 @@ Resources/Config.xcconfig
 *.dSYM
 
 ## Provisioning Profiles
-profile
+*.mobileprovision
+*.provisionprofile
 
 ## Breakpoints
 *.xcbkptlist
