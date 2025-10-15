@@ -7,6 +7,8 @@ import SwiftUI
 
 struct NewsView: View {
     @StateObject private var viewModel = NewsViewModel()
+    @EnvironmentObject var appState: AppState
+    @State private var hasLoadedInitially = false
     
     var body: some View {
         NavigationStack {
@@ -17,7 +19,7 @@ struct NewsView: View {
                     EmptyStateView(
                         icon: "newspaper",
                         title: "No News Yet",
-                        message: "News and updates from your network will appear here."
+                        message: "News and updates from your network will appear here. Tap 'Fetch News' on individual contacts to get started."
                     )
                 } else {
                     ScrollView {
@@ -32,7 +34,18 @@ struct NewsView: View {
             }
             .navigationTitle("News")
             .task {
-                await viewModel.loadNews()
+                // Only load once on initial view appearance
+                guard !hasLoadedInitially else { 
+                    print("📰 NewsView: Already loaded, skipping")
+                    return 
+                }
+                print("📰 NewsView: Initial load starting")
+                hasLoadedInitially = true
+                await viewModel.loadNews(userId: appState.currentUserId)
+            }
+            .refreshable {
+                print("📰 NewsView: Pull to refresh triggered")
+                await viewModel.loadNews(userId: appState.currentUserId)
             }
         }
     }

@@ -159,6 +159,9 @@ Resources/Config.xcconfig
 # Backup the template instead
 !Resources/Config.xcconfig.template
 
+## Internal Documentation
+Overview.md
+
 ## Environment Variables
 .env
 .env.local
