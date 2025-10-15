@@ -14,6 +14,7 @@ class ContactDetailViewModel: ObservableObject {
     @Published var reminders: [ContactReminder] = []
     @Published var news: [ContactNews] = []
     @Published var isLoading = false
+    @Published var isFetchingNews = false
     @Published var error: ServiceError?
     
     private let logger = Logger.viewModels
@@ -100,6 +101,25 @@ class ContactDetailViewModel: ObservableObject {
             news = try await newsService.list(contactId: self.contactId)
         } catch {
             logger.error("Failed to load news: \(error.localizedDescription)")
+        }
+    }
+    
+    func fetchNews() async {
+        isFetchingNews = true
+        defer { isFetchingNews = false }
+        
+        do {
+            logger.info("Fetching news from NewsAPI for contact: \(self.contactId.uuidString)")
+            let fetchedNews = try await newsService.fetchNews(contactId: self.contactId)
+            // Reload news from database to get complete list
+            await loadNews()
+            logger.info("Successfully fetched \(fetchedNews.count) news articles")
+        } catch let error as ServiceError {
+            logger.error("Failed to fetch news: \(error.localizedDescription)")
+            self.error = error
+        } catch {
+            logger.error("Unexpected error fetching news: \(error.localizedDescription)")
+            self.error = .unknown(error.localizedDescription)
         }
     }
 }

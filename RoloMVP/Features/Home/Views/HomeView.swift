@@ -8,6 +8,7 @@ import SwiftUI
 struct HomeView: View {
     @StateObject private var viewModel = HomeViewModel()
     @EnvironmentObject var appState: AppState
+    @State private var hasLoadedInitially = false
     
     var body: some View {
         NavigationStack {
@@ -103,7 +104,13 @@ struct HomeView: View {
             }
             .navigationBarTitleDisplayMode(.inline)
             .task {
-                await viewModel.loadData()
+                // Only load once on initial view appearance
+                guard !hasLoadedInitially else { return }
+                hasLoadedInitially = true
+                await viewModel.loadData(userId: appState.currentUserId)
+            }
+            .refreshable {
+                await viewModel.loadData(userId: appState.currentUserId)
             }
         }
     }

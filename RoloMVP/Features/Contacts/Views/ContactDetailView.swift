@@ -73,7 +73,9 @@ struct ContactDetailView: View {
                                     showAddReminderSheet = true
                                 }
                             case 3:
-                                ContactNewsTab(news: viewModel.news)
+                                ContactNewsTab(news: viewModel.news, isFetchingNews: viewModel.isFetchingNews) {
+                                    await viewModel.fetchNews()
+                                }
                             case 4:
                                 if let userId = appState.currentUserId {
                                     ContactChatContainer(
@@ -448,18 +450,52 @@ struct ReminderCard: View {
 // MARK: - News Tab
 struct ContactNewsTab: View {
     let news: [ContactNews]
+    let isFetchingNews: Bool
+    let onFetchNews: () async -> Void
     
     var body: some View {
-        VStack {
+        VStack(spacing: 16) {
             if news.isEmpty {
                 EmptyStateView(
                     icon: "newspaper",
                     title: "No News",
-                    message: "News and updates about this contact will appear here."
+                    message: "Fetch recent news and updates about this contact from the web.",
+                    actionTitle: isFetchingNews ? "Fetching..." : "Fetch News",
+                    action: {
+                        Task {
+                            await onFetchNews()
+                        }
+                    }
                 )
             } else {
-                ForEach(news) { item in
-                    NewsItemCard(news: item)
+                VStack(spacing: 12) {
+                    ForEach(news) { item in
+                        NewsItemCard(news: item)
+                    }
+                    
+                    Button(action: {
+                        Task {
+                            await onFetchNews()
+                        }
+                    }) {
+                        HStack {
+                            if isFetchingNews {
+                                ProgressView()
+                                    .progressViewStyle(CircularProgressViewStyle())
+                                    .scaleEffect(0.8)
+                            } else {
+                                Image(systemName: "arrow.clockwise")
+                            }
+                            Text(isFetchingNews ? "Fetching News..." : "Refresh News")
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(Color.roloPrimary.opacity(0.1))
+                        .foregroundColor(.roloPrimary)
+                        .cornerRadius(10)
+                    }
+                    .disabled(isFetchingNews)
+                    .padding(.top)
                 }
             }
         }
