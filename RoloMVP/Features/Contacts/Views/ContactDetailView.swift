@@ -473,6 +473,12 @@ struct ContactNotesTab: View {
     
     var body: some View {
         VStack {
+            EditableNoteCard()
+            Text("Previous Notes")
+                .font(.headline)
+                .fontWeight(.bold)
+                .foregroundColor(.secondary)
+                .frame(maxWidth: .infinity, alignment: .leading)
             if notes.isEmpty {
                 EmptyStateView(
                     icon: "note.text",
@@ -486,9 +492,6 @@ struct ContactNotesTab: View {
                     ForEach(notes) { note in
                         NoteCard(note: note)
                     }
-                    
-                    PrimaryButton(title: "Add Note", action: onAddNote)
-                        .padding(.top)
                 }
             }
         }
@@ -500,30 +503,127 @@ struct NoteCard: View {
     
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                Text(note.title)
-                    .font(.headline)
-                
-                Spacer()
-                
-                if note.isMeeting {
-                    Image(systemName: "video.fill")
-                        .foregroundColor(.blue)
-                        .font(.caption)
-                }
-            }
-            
-            Text(note.content)
-                .font(.body)
-                .foregroundColor(.secondary)
-            
             Text(Formatters.shortDateFormatter.string(from: note.createdAt))
                 .font(.caption)
                 .foregroundColor(.secondary)
+            Text(note.title)
+                .font(.headline)
+            Text(note.content)
+                .font(.caption)
+                .foregroundColor(.black)
+            if note.isMeeting {
+                HStack {
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundColor(.blue)
+                        .font(.caption)
+                    Text("Was a meeting")
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                }
+            } else {
+                HStack {
+                    Image(systemName: "checkmark.circle")
+                        .foregroundColor(.gray)
+                        .font(.caption)
+                    Text("Was a meeting")
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                }
+            }
         }
         .padding()
-        .background(Color.roloSecondaryBackground)
+        .background(Color.white)
         .cornerRadius(10)
+    }
+}
+
+struct EditableNoteCard: View {
+    @State private var title = ""
+    @State private var content = ""
+    @State private var isEditing = false
+    @State private var isMeeting = false
+    @FocusState private var focusedField: Field?
+    
+    enum Field {
+        case title, content
+    }
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            // Header
+            HStack {
+                Text("Today")
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+                
+                Spacer()
+                
+                Button {
+                    if !title.isEmpty || !content.isEmpty {
+                        // Save the note here
+                        print("Saving note: \(title) - \(content)")
+                        // Reset for next note
+                        title = ""
+                        content = ""
+                        focusedField = nil
+                    }
+                } label: {
+                    Text("Save")
+                        .font(.caption)
+                        .fontWeight(.semibold)
+                        .foregroundColor(title.isEmpty && content.isEmpty ? .gray : .blue)
+                }
+                .disabled(title.isEmpty && content.isEmpty)
+            }
+            
+            // Title Field
+            TextField("Note title", text: $title)
+                .font(.headline)
+                .foregroundColor(.black)
+                .background(Color.white)
+                .cornerRadius(6)
+                .focused($focusedField, equals: .title)
+                .onTapGesture {
+                    focusedField = .title
+                }
+            
+            // Content Field
+            ZStack(alignment: .topLeading) {
+                if content.isEmpty {
+                    Text("Write your note here...")
+                        .foregroundColor(.black)
+                        .font(.caption)
+                }
+                
+                TextEditor(text: $content)
+                    .frame(minHeight: 50)
+                    .background(Color.white)
+                    .cornerRadius(6)
+                    .focused($focusedField, equals: .content)
+                    .opacity(content.isEmpty ? 0.3 : 1.0)
+                    .font(.caption)
+                    .foregroundColor(.black)
+                    .onTapGesture {
+                        focusedField = .content
+                    }
+            }
+            HStack {
+                Button {
+                    isMeeting.toggle()
+                } label: {
+                    Image(systemName: isMeeting ? "checkmark.circle.fill" : "circle")
+                       .foregroundColor(isMeeting ? .blue : .gray)
+                       .font(.system(size: 15))
+                }
+                Text("Was a meeting")
+                   .font(.caption)
+                   .foregroundColor(.secondary)
+            }
+        }
+        .padding()
+        .background(Color.white)
+        .cornerRadius(10)
+        .shadow(color: Color.black.opacity(0.1), radius: 2, x: 0, y: 1)
     }
 }
 
@@ -533,6 +633,11 @@ struct ContactRemindersTab: View {
     let onAddReminder: () -> Void
     
     var body: some View {
+        Text("Upcoming")
+            .font(.title2)
+            .fontWeight(.bold)
+            .foregroundColor(.black)
+            .frame(maxWidth: .infinity, alignment: .leading)
         VStack {
             if reminders.isEmpty {
                 EmptyStateView(
@@ -548,8 +653,18 @@ struct ContactRemindersTab: View {
                         ReminderCard(reminder: reminder)
                     }
                     
-                    PrimaryButton(title: "Add Reminder", action: onAddReminder)
-                        .padding(.top)
+                    //PrimaryButton(title: "Add Reminder", action: onAddReminder)
+                    Button(action: {
+                        Task {
+                            await onAddReminder()
+                        }
+                    }) {
+                        Text("Add Reminder")
+                    }
+                    .padding()
+                    .background(Color.roloPrimary.opacity(0.1))
+                    .foregroundColor(.roloPrimary)
+                    .cornerRadius(10)
                 }
             }
         }
@@ -562,14 +677,13 @@ struct ReminderCard: View {
     var body: some View {
         HStack {
             VStack(alignment: .leading, spacing: 4) {
-                Text(reminder.body)
-                    .font(.body)
-                
                 if let dueAt = reminder.dueAt {
                     Text(Formatters.shortDateFormatter.string(from: dueAt))
-                        .font(.caption)
+                        .font(.caption2)
                         .foregroundColor(.secondary)
                 }
+                Text(reminder.body)
+                    .font(.caption)
             }
             
             Spacer()
@@ -578,7 +692,7 @@ struct ReminderCard: View {
                 .foregroundColor(.orange)
         }
         .padding()
-        .background(Color.roloSecondaryBackground)
+        .background(Color.white)
         .cornerRadius(10)
     }
 }
@@ -643,23 +757,21 @@ struct NewsItemCard: View {
     
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
+            Text(Formatters.shortDateFormatter.string(from: news.publishedAt))
+                .font(.caption)
+                .foregroundColor(.secondary)
             Text(news.title)
                 .font(.headline)
-            
             Text(news.summary)
-                .font(.body)
-                .foregroundColor(.secondary)
+                .font(.caption)
+                .foregroundColor(.black)
             
             HStack {
                 Text(news.source)
-                    .font(.caption)
+                    .font(.caption2)
                     .foregroundColor(.secondary)
                 
                 Spacer()
-                
-                Text(Formatters.shortDateFormatter.string(from: news.publishedAt))
-                    .font(.caption)
-                    .foregroundColor(.secondary)
             }
             
             if let url = URL(string: news.url) {
@@ -669,7 +781,7 @@ struct NewsItemCard: View {
             }
         }
         .padding()
-        .background(Color.roloSecondaryBackground)
+        .background(Color.white)
         .cornerRadius(10)
     }
 }
