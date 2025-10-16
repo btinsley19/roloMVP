@@ -5,6 +5,39 @@
 
 import SwiftUI
 
+// MARK: - Tab Bar Item Component
+struct TabBarItem: View {
+    let title: String
+    let icon: String
+    let isSelected: Bool
+    let action: () -> Void
+    
+    var body: some View {
+        Button(action: action) {
+            VStack(spacing: 4) {
+                Image(systemName: icon)
+                    .font(.system(size: 18, weight: isSelected ? .semibold : .regular))
+                    .foregroundColor(isSelected ? .primary : .secondary)
+                
+                Text(title)
+                    .font(.caption)
+                    .fontWeight(isSelected ? .semibold : .regular)
+                    .foregroundColor(isSelected ? .primary : .secondary)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 12)
+            .background(
+                VStack {
+                    Spacer()
+                    Rectangle()
+                        .fill(isSelected ? Color.primary : Color.clear)
+                        .frame(height: 2)
+                }
+            )
+        }
+    }
+}
+
 struct ContactDetailView: View {
     @StateObject private var viewModel: ContactDetailViewModel
     @EnvironmentObject var appState: AppState
@@ -22,11 +55,11 @@ struct ContactDetailView: View {
     }
     
     var body: some View {
-        Group {
-            if viewModel.isLoading {
-                LoadingView(message: "Loading contact...")
-            } else if let contact = viewModel.contact {
-                ScrollView {
+        ZStack {
+            Group {
+                if viewModel.isLoading {
+                    LoadingView(message: "Loading contact...")
+                } else if let contact = viewModel.contact {
                     VStack(spacing: 0) {
                         // Header
                         VStack(spacing: 16) {
@@ -44,70 +77,117 @@ struct ContactDetailView: View {
                         }
                         .padding()
                         .frame(maxWidth: .infinity)
-                        .background(Color.roloSecondaryBackground)
+                        .background(Color.white)
                         
-                        // Tab Picker
-                        Picker("Tab", selection: $selectedTab) {
-                            Text("Info").tag(0)
-                            Text("Notes").tag(1)
-                            Text("Reminders").tag(2)
-                            Text("News").tag(3)
-                            Text("AI").tag(4)
+                        // Custom Tab Bar
+                        HStack(spacing: 0) {
+                            TabBarItem(
+                                title: "Contact",
+                                icon: "person.fill",
+                                isSelected: selectedTab == 0,
+                                action: { selectedTab = 0 }
+                            )
+                            
+                            TabBarItem(
+                                title: "News",
+                                icon: "newspaper.fill",
+                                isSelected: selectedTab == 3,
+                                action: { selectedTab = 3 }
+                            )
+                            
+                            TabBarItem(
+                                title: "Notes",
+                                icon: "note.text",
+                                isSelected: selectedTab == 1,
+                                action: { selectedTab = 1 }
+                            )
+                            
+                            TabBarItem(
+                                title: "Reminders",
+                                icon: "bell.fill",
+                                isSelected: selectedTab == 2,
+                                action: { selectedTab = 2 }
+                            )
                         }
-                        .pickerStyle(.segmented)
-                        .padding()
+                        .padding(.horizontal)
+                        .background(Color.white)
                         
                         // Tab Content
-                        Group {
-                            switch selectedTab {
-                            case 0:
-                                ContactInfoTab(contact: contact, tags: viewModel.tags) {
-                                    showManageTagsSheet = true
+                        //TO DO: Changes images to match designs
+                        ScrollView {
+                            Group {
+                                switch selectedTab {
+                                case 0:
+                                    ContactInfoTab(contact: contact, tags: viewModel.tags) {
+                                        showManageTagsSheet = true
+                                    }
+                                case 1:
+                                    ContactNotesTab(notes: viewModel.notes) {
+                                        showAddNoteSheet = true
+                                    }
+                                case 2:
+                                    ContactRemindersTab(reminders: viewModel.reminders) {
+                                        showAddReminderSheet = true
+                                    }
+                                case 3:
+                                    ContactNewsTab(news: viewModel.news, isFetchingNews: viewModel.isFetchingNews) {
+                                        await viewModel.fetchNews()
+                                    }
+                                case 4:
+                                    if let userId = appState.currentUserId {
+                                        ContactChatContainer(
+                                            contactId: contactId,
+                                            userId: userId,
+                                            onNoteAdded: {
+                                                await viewModel.loadNotes()
+                                            },
+                                            onReminderAdded: {
+                                                await viewModel.loadReminders()
+                                            }
+                                        )
+                                    } else {
+                                        EmptyStateView(
+                                            icon: "exclamationmark.triangle",
+                                            title: "Error",
+                                            message: "User not authenticated"
+                                        )
+                                    }
+                                default:
+                                    EmptyView()
                                 }
-                            case 1:
-                                ContactNotesTab(notes: viewModel.notes) {
-                                    showAddNoteSheet = true
-                                }
-                            case 2:
-                                ContactRemindersTab(reminders: viewModel.reminders) {
-                                    showAddReminderSheet = true
-                                }
-                            case 3:
-                                ContactNewsTab(news: viewModel.news, isFetchingNews: viewModel.isFetchingNews) {
-                                    await viewModel.fetchNews()
-                                }
-                            case 4:
-                                if let userId = appState.currentUserId {
-                                    ContactChatContainer(
-                                        contactId: contactId,
-                                        userId: userId,
-                                        onNoteAdded: {
-                                            await viewModel.loadNotes()
-                                        },
-                                        onReminderAdded: {
-                                            await viewModel.loadReminders()
-                                        }
-                                    )
-                                } else {
-                                    EmptyStateView(
-                                        icon: "exclamationmark.triangle",
-                                        title: "Error",
-                                        message: "User not authenticated"
-                                    )
-                                }
-                            default:
-                                EmptyView()
                             }
+                            .padding()
                         }
-                        .padding()
                     }
+                    .background(Color.gray.opacity(0.05))
+                } else {
+                    EmptyStateView(
+                        icon: "person.slash",
+                        title: "Contact Not Found",
+                        message: "This contact could not be loaded."
+                    )
                 }
-            } else {
-                EmptyStateView(
-                    icon: "person.slash",
-                    title: "Contact Not Found",
-                    message: "This contact could not be loaded."
-                )
+            }
+            // Floating Message Button
+            VStack {
+                Spacer()
+                HStack {
+                    Spacer()
+                    Button {
+                        // Add your message/chat action here
+                        print("Message button tapped")
+                    } label: {
+                        Image(systemName: "message.fill")
+                            .font(.system(size: 20))
+                            .foregroundColor(.white)
+                            .frame(width: 56, height: 56)
+                            .background(Color.blue)
+                            .clipShape(Circle())
+                            .shadow(color: Color.black.opacity(0.2), radius: 4, x: 0, y: 2)
+                    }
+                    .padding(.bottom, 20)
+                    .padding(.trailing, 20)
+                }
             }
         }
         .navigationBarTitleDisplayMode(.inline)
@@ -154,105 +234,161 @@ struct ContactDetailView: View {
 }
 
 // MARK: - Info Tab
-struct ContactInfoTab: View {
-    let contact: Contact
-    let tags: [(tag: Tag, contactTag: ContactTag)]
-    let onManageTags: () -> Void
-    
-    var body: some View {
-        VStack(alignment: .leading, spacing: 20) {
-            // Tags
-            VStack(alignment: .leading, spacing: 12) {
-                HStack {
-                    Text("Tags")
-                        .font(.headline)
-                    Spacer()
-                    Button(action: onManageTags) {
-                        Image(systemName: "tag")
-                        Text("Manage")
+    struct ContactInfoTab: View {
+        let contact: Contact
+        let tags: [(tag: Tag, contactTag: ContactTag)]
+        let onManageTags: () -> Void
+        
+        var body: some View {
+            VStack(alignment: .leading, spacing: 20) {
+                // Job Title Section
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Job title")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .textCase(.uppercase)
+                        .fontWeight(.medium)
+                    
+                    Text(contact.position ?? "No position specified")
+                        .font(.body)
+                        .foregroundColor(.primary)
+                }
+                .padding()
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(Color.white)
+                )
+                
+                // Company Section
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Company")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .textCase(.uppercase)
+                        .fontWeight(.medium)
+                    
+                    Text(contact.companyName ?? "No company specified")
+                        .font(.body)
+                        .foregroundColor(.primary)
+                }
+                .padding()
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(Color.white)
+                )
+                
+                // Last Interaction Section
+                if let lastInteraction = contact.lastInteractionAt {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Last interaction")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                            .textCase(.uppercase)
+                            .fontWeight(.medium)
+                        
+                        Text(Formatters.shortDateFormatter.string(from: lastInteraction))
+                            .font(.body)
+                            .foregroundColor(.primary)
                     }
-                    .font(.caption)
+                    .padding()
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(
+                        RoundedRectangle(cornerRadius: 8)
+                            .fill(Color.white)
+                    )
                 }
                 
-                if tags.isEmpty {
-                    Text("No tags yet")
-                        .foregroundColor(.secondary)
-                        .font(.subheadline)
-                } else {
-                    FlowLayout(spacing: 8) {
-                        ForEach(tags, id: \.tag.id) { item in
-                            TagPill(
-                                name: item.tag.name,
-                                color: tagColor(for: item)
-                            )
+                // Labels Section
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack {
+                        Text("Labels")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                            .textCase(.uppercase)
+                            .fontWeight(.medium)
+                        
+                        Spacer()
+                        
+                        Button(action: onManageTags) {
+                            Image(systemName: "pencil")
+                                .font(.caption)
+                                .foregroundColor(.blue)
+                        }
+                    }
+                    
+                    if tags.isEmpty {
+                        Text("No labels yet")
+                            .foregroundColor(.secondary)
+                            .font(.subheadline)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.vertical, 8)
+                    } else {
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack(spacing: 8) {
+                                ForEach(tags, id: \.tag.id) { item in
+                                    Text(item.tag.name)
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                        .padding(.horizontal, 12)
+                                        .padding(.vertical, 6)
+                                        .background(Color.gray.opacity(0.2))
+                                        .cornerRadius(16)
+                                }
+                            }
                         }
                     }
                 }
-            }
-            
-            Divider()
-            
-            // Priority
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Relationship Priority")
-                    .font(.headline)
+                .padding()
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(Color.white)
+                )
                 
-                HStack {
-                    Text("\(contact.relationshipPriority)")
-                        .font(.title2)
-                        .fontWeight(.bold)
-                        .foregroundColor(Color.priorityColor(for: contact.relationshipPriority))
-                    
-                    Spacer()
-                    
-                    // Visual priority indicator
-                    ForEach(1...10, id: \.self) { level in
-                        Circle()
-                            .fill(level <= contact.relationshipPriority ? Color.priorityColor(for: contact.relationshipPriority) : Color.gray.opacity(0.3))
-                            .frame(width: 8, height: 8)
+                // Socials Section
+                if let linkedinUrl = contact.linkedinUrl {
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("Socials")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                            .textCase(.uppercase)
+                            .fontWeight(.medium)
+                        HStack(spacing: 16) {
+                            Image(systemName: "link") // Change to linkedin icon
+                                .resizable()
+                                .frame(width: 20, height: 20)
+                                .foregroundColor(.blue)
+                            
+                            if let url = URL(string: linkedinUrl) {
+                                Link("LinkedIn Profile", destination: url)
+                                    .font(.body)
+                                    .foregroundColor(.blue)
+                            }
+                        }
+                        
                     }
+                    .padding()
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(
+                        RoundedRectangle(cornerRadius: 8)
+                            .fill(Color.white)
+                    )
                 }
+                Spacer()
             }
-            
-            Divider()
-            
-            // Last Interaction
-            if let lastInteraction = contact.lastInteractionAt {
-                InfoRow(label: "Last Contact", value: Formatters.shortDateFormatter.string(from: lastInteraction))
-                Divider()
-            }
-            
-            // LinkedIn
-            if let linkedinUrl = contact.linkedinUrl {
-                InfoRow(label: "LinkedIn", value: linkedinUrl, isLink: true)
-                Divider()
-            }
-            
-            // Relationship Summary
-            if let summary = contact.relationshipSummary {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Relationship Summary")
-                        .font(.headline)
-                    
-                    Text(summary)
-                        .font(.body)
-                        .foregroundColor(.secondary)
-                }
-            }
-            
-            Spacer()
         }
-    }
-    
-    private func tagColor(for item: (tag: Tag, contactTag: ContactTag)) -> Color {
-        // Use color_override if set, otherwise use priority-based color
-        if let colorOverride = item.contactTag.colorOverride {
-            // Parse hex color (simplified - just return a default color for now)
-            return .blue
-        } else {
-            return Color.priorityColor(for: Int(item.contactTag.priority))
+        
+        private func tagColor(for item: (tag: Tag, contactTag: ContactTag)) -> Color {
+            // Use color_override if set, otherwise use priority-based color
+            if let colorOverride = item.contactTag.colorOverride {
+                // Parse hex color (simplified - just return a default color for now)
+                return .blue
+            } else {
+                return Color.priorityColor(for: Int(item.contactTag.priority))
+            }
         }
-    }
 }
 
 // Simple flow layout for tags
