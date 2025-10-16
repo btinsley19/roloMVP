@@ -207,4 +207,5 @@ coverage/
 ## Archive
 *.ipa
 *.app.zip
+*.xcuserstate
 
