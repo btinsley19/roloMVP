@@ -161,6 +161,7 @@ Resources/Config.xcconfig
 
 ## Internal Documentation
 Overview.md
+NEWS_IMPLEMENTATION_OVERVIEW.md
 
 ## Environment Variables
 .env
