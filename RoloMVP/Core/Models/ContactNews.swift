@@ -15,6 +15,7 @@ struct ContactNews: Identifiable, Codable, Equatable {
     let publishedAt: Date
     let fetchedAt: Date
     let topics: [String]?
+    let imageUrl: String?
     let createdAt: Date
     
     enum CodingKeys: String, CodingKey {
@@ -27,6 +28,7 @@ struct ContactNews: Identifiable, Codable, Equatable {
         case publishedAt = "published_at"
         case fetchedAt = "fetched_at"
         case topics
+        case imageUrl = "image_url"
         case createdAt = "created_at"
     }
 }
@@ -42,6 +44,7 @@ struct ContactNewsWithContact: Identifiable, Codable, Equatable {
     let publishedAt: Date
     let fetchedAt: Date
     let topics: [String]?
+    let imageUrl: String?
     let createdAt: Date
     
     // Contact info (joined from contacts table)
@@ -57,6 +60,7 @@ struct ContactNewsWithContact: Identifiable, Codable, Equatable {
         case publishedAt = "published_at"
         case fetchedAt = "fetched_at"
         case topics
+        case imageUrl = "image_url"
         case createdAt = "created_at"
         case contactName = "contact_name"
     }

@@ -11,6 +11,7 @@ interface NewsAPIArticle {
   title: string
   description: string | null
   url: string
+  urlToImage: string | null
   publishedAt: string
   content: string | null
 }
@@ -162,6 +163,7 @@ serve(async (req) => {
         published_at: article.publishedAt,
         fetched_at: new Date().toISOString(),
         topics: [] as string[],
+        image_url: article.urlToImage || null,
       }
 
       // Check if article already exists (by URL)

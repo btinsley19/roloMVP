@@ -27,7 +27,7 @@ class ContactsService: ContactsServiceProtocol {
     func fetchContacts(owner: UUID, search: String?, limit: Int = 50, offset: Int = 0) async throws -> [Contact] {
         logger.info("fetchContacts called for owner: \(owner.uuidString), search: \(search ?? "nil")")
         
-        var query = client
+        let query = client
             .from("contacts")
             .select()
             .eq("user_id", value: owner.uuidString)

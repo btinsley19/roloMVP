@@ -14,6 +14,7 @@ struct NewContactNews: Encodable {
     let publishedAt: Date
     let fetchedAt: Date
     let topics: [String]?
+    let imageUrl: String?
     
     enum CodingKeys: String, CodingKey {
         case contactId = "contact_id"
@@ -24,6 +25,7 @@ struct NewContactNews: Encodable {
         case publishedAt = "published_at"
         case fetchedAt = "fetched_at"
         case topics
+        case imageUrl = "image_url"
     }
 }
 

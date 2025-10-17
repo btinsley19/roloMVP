@@ -164,6 +164,7 @@ class NewsService: NewsServiceProtocol {
                     publishedAt: newsItem.publishedAt,
                     fetchedAt: newsItem.fetchedAt,
                     topics: newsItem.topics,
+                    imageUrl: newsItem.imageUrl,
                     createdAt: newsItem.createdAt,
                     contactName: contactNameMap[newsItem.contactId]
                 )

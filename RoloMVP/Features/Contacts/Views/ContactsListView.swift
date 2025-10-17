@@ -100,8 +100,8 @@ struct ContactsListView: View {
             .environmentObject(appState)
         }
         .onAppear {
-            // Update userId from appState if available
-            if let userId = appState.currentUserId {
+            // Load contacts if user is authenticated
+            if appState.currentUserId != nil {
                 Task {
                     await viewModel.loadContacts()
                 }
