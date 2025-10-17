@@ -10,6 +10,7 @@ import Supabase
 protocol NewsServiceProtocol {
     func list(contactId: UUID) async throws -> [ContactNews]
     func listRecent(userId: UUID, limit: Int) async throws -> [ContactNews]
+    func listRecentWithContacts(userId: UUID, limit: Int) async throws -> [ContactNewsWithContact]
     func get(id: UUID) async throws -> ContactNews
     func create(_ newNews: NewContactNews) async throws -> ContactNews
     func delete(id: UUID) async throws
@@ -31,7 +32,7 @@ class NewsService: NewsServiceProtocol {
             .from("contact_news")
             .select()
             .eq("contact_id", value: contactId.uuidString)
-            .order("published_at", ascending: false)
+            .order("fetched_at", ascending: false)
             .execute()
             .value
     }
@@ -93,6 +94,89 @@ class NewsService: NewsServiceProtocol {
             }
             logger.error("   ❌ Failed to fetch news: \(error)")
             // This might just mean no news exists yet
+            return []
+        }
+    }
+    
+    func listRecentWithContacts(userId: UUID, limit: Int = 20) async throws -> [ContactNewsWithContact] {
+        logger.info("📰 listRecentWithContacts for user: \(userId.uuidString)")
+        
+        // Use regular query with standard Supabase decoding
+        do {
+            // Get user's contact IDs first
+            struct ContactId: Codable {
+                let id: UUID
+            }
+            
+            let contactsResponse: [ContactId] = try await client
+                .from("contacts")
+                .select("id")
+                .eq("user_id", value: userId.uuidString)
+                .execute()
+                .value
+            
+            guard !contactsResponse.isEmpty else {
+                logger.info("   No contacts found, returning empty array")
+                return []
+            }
+            
+            let contactIds = contactsResponse.map { $0.id.uuidString }
+            logger.info("   Found \(contactIds.count) contacts")
+            
+            // Fetch news with standard decoding
+            let news: [ContactNews] = try await client
+                .from("contact_news")
+                .select()
+                .in("contact_id", values: contactIds)
+                .order("published_at", ascending: false)
+                .limit(limit)
+                .execute()
+                .value
+            
+            logger.info("   Found \(news.count) news items, now fetching contact names...")
+            
+            // Fetch contact names for these news items
+            let uniqueContactIds = Array(Set(news.map { $0.contactId.uuidString }))
+            struct ContactNameInfo: Codable {
+                let id: UUID
+                let full_name: String
+            }
+            
+            let contacts: [ContactNameInfo] = try await client
+                .from("contacts")
+                .select("id, full_name")
+                .in("id", values: uniqueContactIds)
+                .execute()
+                .value
+            
+            // Create lookup dictionary
+            let contactNameMap = Dictionary(uniqueKeysWithValues: contacts.map { ($0.id, $0.full_name) })
+            
+            // Map to ContactNewsWithContact
+            let newsWithContacts = news.map { newsItem -> ContactNewsWithContact in
+                ContactNewsWithContact(
+                    id: newsItem.id,
+                    contactId: newsItem.contactId,
+                    source: newsItem.source,
+                    title: newsItem.title,
+                    url: newsItem.url,
+                    summary: newsItem.summary,
+                    publishedAt: newsItem.publishedAt,
+                    fetchedAt: newsItem.fetchedAt,
+                    topics: newsItem.topics,
+                    createdAt: newsItem.createdAt,
+                    contactName: contactNameMap[newsItem.contactId]
+                )
+            }
+            
+            logger.info("   ✅ Found \(newsWithContacts.count) news items with contacts")
+            return newsWithContacts
+        } catch {
+            if (error as NSError).code == NSURLErrorCancelled {
+                logger.info("   ⏸️ Request cancelled")
+                throw error
+            }
+            logger.error("   ❌ Failed to fetch news: \(error)")
             return []
         }
     }

@@ -46,6 +46,7 @@ struct ContactDetailView: View {
     @State private var showManageTagsSheet = false
     @State private var showAddNoteSheet = false
     @State private var showAddReminderSheet = false
+    @State private var showAIChatSheet = false
     
     let contactId: UUID
     
@@ -122,8 +123,8 @@ struct ContactDetailView: View {
                                         showManageTagsSheet = true
                                     }
                                 case 1:
-                                    ContactNotesTab(notes: viewModel.notes) {
-                                        showAddNoteSheet = true
+                                    ContactNotesTab(contactId: contactId, notes: viewModel.notes) {
+                                        await viewModel.loadNotes()
                                     }
                                 case 2:
                                     ContactRemindersTab(reminders: viewModel.reminders) {
@@ -174,8 +175,7 @@ struct ContactDetailView: View {
                 HStack {
                     Spacer()
                     Button {
-                        // Add your message/chat action here
-                        print("Message button tapped")
+                        showAIChatSheet = true
                     } label: {
                         Image(systemName: "message.fill")
                             .font(.system(size: 20))
@@ -222,6 +222,43 @@ struct ContactDetailView: View {
                 await viewModel.loadReminders()
             }
             .environmentObject(appState)
+        }
+        .sheet(isPresented: $showAIChatSheet) {
+            NavigationStack {
+                if let userId = appState.currentUserId {
+                    ContactChatView(
+                        viewModel: ContactChatViewModel(contactId: contactId, userId: userId),
+                        onNoteAdded: {
+                            await viewModel.loadNotes()
+                        },
+                        onReminderAdded: {
+                            await viewModel.loadReminders()
+                        }
+                    )
+                    .environmentObject(appState)
+                    .navigationTitle("AI Assistant")
+                    .navigationBarTitleDisplayMode(.inline)
+                    .toolbar {
+                        ToolbarItem(placement: .navigationBarTrailing) {
+                            Button("Done") {
+                                showAIChatSheet = false
+                            }
+                        }
+                    }
+                } else {
+                    VStack(spacing: 16) {
+                        Image(systemName: "exclamationmark.triangle")
+                            .font(.largeTitle)
+                            .foregroundColor(.orange)
+                        Text("Not Authenticated")
+                            .font(.headline)
+                        Text("Please sign in to use AI chat")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                    }
+                    .padding()
+                }
+            }
         }
         .task {
             await viewModel.loadContact()
@@ -468,25 +505,24 @@ struct InfoRow: View {
 
 // MARK: - Notes Tab
 struct ContactNotesTab: View {
+    let contactId: UUID
     let notes: [ContactNote]
-    let onAddNote: () -> Void
+    let onNoteAdded: () async -> Void
     
     var body: some View {
         VStack {
-            EditableNoteCard()
+            EditableNoteCard(contactId: contactId, onSave: onNoteAdded)
             Text("Previous Notes")
                 .font(.headline)
                 .fontWeight(.bold)
                 .foregroundColor(.secondary)
                 .frame(maxWidth: .infinity, alignment: .leading)
             if notes.isEmpty {
-                EmptyStateView(
-                    icon: "note.text",
-                    title: "No Notes",
-                    message: "Add notes to remember important details about your interactions.",
-                    actionTitle: "Add Note",
-                    action: onAddNote
-                )
+                Text("No previous notes yet")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 40)
             } else {
                 VStack(spacing: 12) {
                     ForEach(notes) { note in
@@ -531,6 +567,7 @@ struct NoteCard: View {
                 }
             }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .padding()
         .background(Color.white)
         .cornerRadius(10)
@@ -538,11 +575,20 @@ struct NoteCard: View {
 }
 
 struct EditableNoteCard: View {
+    @EnvironmentObject var appState: AppState
+    
+    let contactId: UUID
+    let onSave: () async -> Void
+    
     @State private var title = ""
     @State private var content = ""
     @State private var isEditing = false
     @State private var isMeeting = false
+    @State private var isSaving = false
+    @State private var errorMessage: String?
     @FocusState private var focusedField: Field?
+    
+    private let notesService = NotesService()
     
     enum Field {
         case title, content
@@ -560,20 +606,22 @@ struct EditableNoteCard: View {
                 
                 Button {
                     if !title.isEmpty || !content.isEmpty {
-                        // Save the note here
-                        print("Saving note: \(title) - \(content)")
-                        // Reset for next note
-                        title = ""
-                        content = ""
-                        focusedField = nil
+                        Task {
+                            await saveNote()
+                        }
                     }
                 } label: {
-                    Text("Save")
-                        .font(.caption)
-                        .fontWeight(.semibold)
-                        .foregroundColor(title.isEmpty && content.isEmpty ? .gray : .blue)
+                    if isSaving {
+                        ProgressView()
+                            .scaleEffect(0.6)
+                    } else {
+                        Text("Save")
+                            .font(.caption)
+                            .fontWeight(.semibold)
+                            .foregroundColor(title.isEmpty && content.isEmpty ? .gray : .blue)
+                    }
                 }
-                .disabled(title.isEmpty && content.isEmpty)
+                .disabled(title.isEmpty && content.isEmpty || isSaving)
             }
             
             // Title Field
@@ -619,11 +667,58 @@ struct EditableNoteCard: View {
                    .font(.caption)
                    .foregroundColor(.secondary)
             }
+            
+            if let errorMessage = errorMessage {
+                Text(errorMessage)
+                    .font(.caption2)
+                    .foregroundColor(.red)
+            }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .padding()
         .background(Color.white)
         .cornerRadius(10)
         .shadow(color: Color.black.opacity(0.1), radius: 2, x: 0, y: 1)
+    }
+    
+    private func saveNote() async {
+        guard let userId = appState.currentUserId else {
+            errorMessage = "User not authenticated"
+            return
+        }
+        
+        guard !title.isEmpty || !content.isEmpty else { return }
+        
+        isSaving = true
+        errorMessage = nil
+        defer { isSaving = false }
+        
+        do {
+            let newNote = NewContactNote(
+                contactId: contactId,
+                userId: userId,
+                title: title,
+                content: content,
+                source: "manual",
+                isMeeting: isMeeting,
+                occurredAt: Date()
+            )
+            
+            print("Saving note: \(title) - \(content)")
+            _ = try await notesService.create(newNote)
+            
+            // Reset fields after successful save
+            title = ""
+            content = ""
+            isMeeting = false
+            focusedField = nil
+            
+            // Refresh the notes list
+            await onSave()
+        } catch {
+            errorMessage = "Failed to save: \(error.localizedDescription)"
+            print("Error saving note: \(error)")
+        }
     }
 }
 
@@ -719,10 +814,7 @@ struct ContactNewsTab: View {
                 )
             } else {
                 VStack(spacing: 12) {
-                    ForEach(news) { item in
-                        NewsItemCard(news: item)
-                    }
-                    
+                    // Refresh button at the top
                     Button(action: {
                         Task {
                             await onFetchNews()
@@ -745,7 +837,11 @@ struct ContactNewsTab: View {
                         .cornerRadius(10)
                     }
                     .disabled(isFetchingNews)
-                    .padding(.top)
+                    
+                    // News cards below
+                    ForEach(news) { item in
+                        NewsItemCard(news: item)
+                    }
                 }
             }
         }

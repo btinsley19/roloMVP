@@ -26,58 +26,36 @@ struct HomeView: View {
                     .padding(.horizontal)
                     .padding(.top, 8)
                     
-                    // Quick Actions
-                    VStack(spacing: 12) {
-                        NavigationLink {
-                            ContactsListView()
-                        } label: {
-                            HStack {
-                                Image(systemName: "person.2.fill")
-                                    .font(.title2)
-                                    .foregroundColor(.white)
-                                    .frame(width: 50, height: 50)
-                                    .background(Color.roloPrimary)
-                                    .cornerRadius(12)
-                                
-                                VStack(alignment: .leading, spacing: 4) {
-                                    Text("Open Contacts")
-                                        .font(.headline)
-                                        .foregroundColor(.primary)
-                                    
-                                    Text("View and manage your network")
-                                        .font(.caption)
-                                        .foregroundColor(.secondary)
+                    // Reminders Section
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("Upcoming Reminders")
+                            .font(.roloHeadline)
+                            .padding(.horizontal)
+                        
+                        if viewModel.upcomingReminders.isEmpty {
+                            Text("No upcoming reminders")
+                                .font(.subheadline)
+                                .foregroundColor(.secondary)
+                                .padding(.horizontal)
+                                .padding(.vertical, 8)
+                        } else {
+                            ScrollView(.horizontal, showsIndicators: false) {
+                                HStack(spacing: 12) {
+                                    ForEach(viewModel.upcomingReminders) { reminder in
+                                        ReminderCardView(reminder: reminder)
+                                            .frame(width: 280)
+                                    }
                                 }
-                                
-                                Spacer()
-                                
-                                Image(systemName: "chevron.right")
-                                    .foregroundColor(.secondary)
+                                .padding(.horizontal)
                             }
-                            .padding()
-                            .background(Color.roloSecondaryBackground)
-                            .cornerRadius(12)
                         }
                     }
-                    .padding(.horizontal)
                     
                     // News Preview
                     VStack(alignment: .leading, spacing: 12) {
-                        HStack {
-                            Text("Recent News")
-                                .font(.roloHeadline)
-                            
-                            Spacer()
-                            
-                            NavigationLink {
-                                NewsView()
-                            } label: {
-                                Text("See All")
-                                    .font(.caption)
-                                    .foregroundColor(.roloPrimary)
-                            }
-                        }
-                        .padding(.horizontal)
+                        Text("Recent News")
+                            .font(.roloHeadline)
+                            .padding(.horizontal)
                         
                         if viewModel.recentNews.isEmpty {
                             Text("No recent news")
@@ -116,12 +94,20 @@ struct HomeView: View {
     }
 }
 
-// Simple news card for home preview
+// News card with contact name for home preview
 struct NewsCardView: View {
-    let news: ContactNews
+    let news: ContactNewsWithContact
     
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
+            // Contact name at the top
+            if let contactName = news.contactName {
+                Text(contactName)
+                    .font(.caption)
+                    .fontWeight(.semibold)
+                    .foregroundColor(.roloPrimary)
+            }
+            
             Text(news.title)
                 .font(.headline)
                 .lineLimit(2)
@@ -141,6 +127,48 @@ struct NewsCardView: View {
                 Text(Formatters.shortDateFormatter.string(from: news.publishedAt))
                     .font(.caption2)
                     .foregroundColor(.secondary)
+            }
+        }
+        .padding()
+        .background(Color.roloSecondaryBackground)
+        .cornerRadius(12)
+    }
+}
+
+// Reminder card with contact name for home preview
+struct ReminderCardView: View {
+    let reminder: ContactReminderWithContact
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            // Contact name at the top
+            if let contactName = reminder.contactName {
+                Text(contactName)
+                    .font(.caption)
+                    .fontWeight(.semibold)
+                    .foregroundColor(.orange)
+            }
+            
+            Text(reminder.body)
+                .font(.body)
+                .lineLimit(3)
+            
+            HStack {
+                Image(systemName: "bell.fill")
+                    .font(.caption2)
+                    .foregroundColor(.orange)
+                
+                if let dueAt = reminder.dueAt {
+                    Text(Formatters.shortDateFormatter.string(from: dueAt))
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                } else {
+                    Text("No due date")
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                }
+                
+                Spacer()
             }
         }
         .padding()

@@ -8,8 +8,8 @@ import OSLog
 
 @MainActor
 class HomeViewModel: ObservableObject {
-    @Published var recentNews: [ContactNews] = []
-    @Published var upcomingReminders: [ContactReminder] = []
+    @Published var recentNews: [ContactNewsWithContact] = []
+    @Published var upcomingReminders: [ContactReminderWithContact] = []
     @Published var isLoading = false
     
     private let logger = Logger.viewModels
@@ -40,12 +40,12 @@ class HomeViewModel: ObservableObject {
     
     private func loadRecentNews(userId: UUID) async {
         do {
-            // Get recent news from last 7 days (limit 20)
-            let allNews = try await newsService.listRecent(userId: userId, limit: 20)
+            // Get recent news from last 30 days (limit 50) with contact names
+            let allNews = try await newsService.listRecentWithContacts(userId: userId, limit: 50)
             
-            // Filter for news from last 7 days
-            let sevenDaysAgo = Calendar.current.date(byAdding: .day, value: -7, to: Date()) ?? Date()
-            self.recentNews = allNews.filter { $0.publishedAt >= sevenDaysAgo }
+            // Filter for news from last 30 days
+            let thirtyDaysAgo = Calendar.current.date(byAdding: .day, value: -30, to: Date()) ?? Date()
+            self.recentNews = allNews.filter { $0.publishedAt >= thirtyDaysAgo }
             
             logger.info("✅ Loaded \(self.recentNews.count) recent news items")
         } catch {
@@ -62,7 +62,7 @@ class HomeViewModel: ObservableObject {
     
     private func loadUpcomingReminders(userId: UUID) async {
         do {
-            self.upcomingReminders = try await remindersService.listUpcoming(userId: userId, limit: 5)
+            self.upcomingReminders = try await remindersService.listUpcomingWithContacts(userId: userId, limit: 50)
             logger.info("✅ Loaded \(self.upcomingReminders.count) upcoming reminders")
         } catch {
             // Check if cancelled - keep existing data
@@ -71,6 +71,7 @@ class HomeViewModel: ObservableObject {
                 // Don't clear upcomingReminders - keep showing what we have
             } else {
                 logger.error("Failed to load upcoming reminders: \(error.localizedDescription)")
+                self.upcomingReminders = []
             }
         }
     }
